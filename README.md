@@ -4,7 +4,7 @@ It creates an OpenAir airspace file with one of the following configurations:
 
 - **Block**: creates a block of airspace defined by the task. Closes the airspace by joining the last point to the first
 - **Ribbon**: creates an airspace strip or ribbon that follows the task line. The task line makes up the right hand boundary of the airspace (in the direction of travel).
-- **Markers**: creates a marker at each point in the file. The marker shape can be one of: bow, circle (default), diamond or star
+- **Markers**: creates a marker at each point in the file. The marker shape can be one of: bow, circle (default), diamond, star or triangle
 
 ## Steps ##
 
@@ -48,7 +48,7 @@ Radius of the markers in metres if converting to a set of airspace markers. For 
 Defaults to the cylinder radius defined in the Points File or 400m if no cylinders defined.
       
 ### Shape ###
-Shape of the marker. It can be one of: bow, circle (default), diamond or star
+Shape of the marker. It can be one of: bow, circle (default), diamond, star or triangle.
 
 # Copyright Notice #
 Copyright 2022 David May
