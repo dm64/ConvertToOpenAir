@@ -492,7 +492,6 @@
   </head>
   <body>
     <h1>Convert To OpenAir Format</h1>
-    <div><i><small>created by David May. v9 Jan 2021</small></i></div>
     <br>
     <form id="convertTask" onSubmit='TransformTaskToAirspace(event)'>
       <table>
@@ -557,11 +556,16 @@
       </table>
     </form>
 
+    <br><br>
+    <div style="float: right;"><i><small>developed by David May. Version 9. Source code on <a href="https://github.com/dm64/ConvertToOpenAir">GitHub</a></small></i></div>
+    <br><br>
+
     <button type="button" class="collapsible">Airspace</button>
     <div id="airspace" class="content"></div>
     <div id="debug"></div>
 
     <button type="button" class="collapsible">Documentation</button>
+
     <div id="documentation" class="content">
       <div>Tool to convert a file containing a set of GPS coordinates to an OpenAir airspace file.</div><br>
       <div>It creates an OpenAir airspace file with one of the following configurations:</div>
@@ -625,83 +629,22 @@
       <div>Shape of the marker. It can be one of: bow, circle (default), diamond or star<br><br></div>
     </div>
 
-    <button type="button" class="collapsible">License</button>
+    <button type="button" class="collapsible">Copyright Notice</button>
     <div id="license" class="content">
-      This program is free software; you can redistribute it and/or modify
+      Copyright 2022 David May
+      <br>
+      This program is free software: you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
-      the Free Software Foundation.
+      the Free Software Foundation, either version 3 of the License, or
+      (at your option) any later version.
       <br>
       This program is distributed in the hope that it will be useful,
       but WITHOUT ANY WARRANTY; without even the implied warranty of
-      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+      GNU General Public License for more details.
       <br>
-      You should have received a copy of the GNU General Public License along with this program (see below). If not, see <a href="https://www.gnu.org/licenses/">https://www.gnu.org/licenses/</a>.
-      <br><br>
-
-      <button type="button" class="collapsible"><i><small>GNU GENERAL PUBLIC LICENSE</small></i></button>
-      <div id="GPL" class="content">
-
-        GNU GENERAL PUBLIC LICENSE
-<br>        Version 3, 29 June 2007
-<br>
-<br>Copyright (C) 2007 Free Software Foundation, Inc. <a href="https://fsf.org/">https://fsf.org/</a>
-<br>Everyone is permitted to copy and distribute verbatim copies
-<br>of this license document, but changing it is not allowed.
-<br>
-<br>             Preamble
-<br>
-<br>The GNU General Public License is a free, copyleft license for
-<br>software and other kinds of works.
-<br>
-<br>The licenses for most software and other practical works are designed
-<br>to take away your freedom to share and change the works.  By contrast,
-<br>the GNU General Public License is intended to guarantee your freedom to
-<br>share and change all versions of a program--to make sure it remains free
-<br>software for all its users.  We, the Free Software Foundation, use the
-<br>GNU General Public License for most of our software; it applies also to
-<br>any other work released this way by its authors.  You can apply it to
-<br>your programs, too.
-<br>
-<br>When we speak of free software, we are referring to freedom, not
-<br>price.  Our General Public Licenses are designed to make sure that you
-<br>have the freedom to distribute copies of free software (and charge for
-<br>them if you wish), that you receive source code or can get it if you
-<br>want it, that you can change the software or use pieces of it in new
-<br>free programs, and that you know you can do these things.
-<br>
-<br>To protect your rights, we need to prevent others from denying you
-<br>these rights or asking you to surrender the rights.  Therefore, you have
-<br>certain responsibilities if you distribute copies of the software, or if
-<br>you modify it: responsibilities to respect the freedom of others.
-<br>
-<br>For example, if you distribute copies of such a program, whether
-<br>gratis or for a fee, you must pass on to the recipients the same
-<br>freedoms that you received.  You must make sure that they, too, receive
-<br>or can get the source code.  And you must show them these terms so they
-<br>know their rights.
-<br>
-<br>Developers that use the GNU GPL protect your rights with two steps:
-<br>(1) assert copyright on the software, and (2) offer you this License
-<br>giving you legal permission to copy, distribute and/or modify it.
-<br>
-<br>For the developers' and authors' protection, the GPL clearly explains
-<br>that there is no warranty for this free software.  For both users' and
-<br>authors' sake, the GPL requires that modified versions be marked as
-<br>changed, so that their problems will not be attributed erroneously to
-<br>authors of previous versions.
-<br>
-<br>Some devices are designed to deny users access to install or run
-<br>modified versions of the software inside them, although the manufacturer
-<br>can do so.  This is fundamentally incompatible with the aim of
-<br>protecting users' freedom to change the software.  The systematic
-<br>pattern of such abuse occurs in the area of products for individuals to
-<br>use, which is precisely where it is most unacceptable.  Therefore, we
-<br>have designed this version of the GPL to prohibit the practice for those
-<br>products.  If such problems arise substantially in other domains, we
-<br>stand ready to extend this provision to those domains in future versions
-<br>of the GPL, as needed to protect the freedom of users.
-<br>
-      </div>
+      You should have received a copy of the GNU General Public License
+      along with this program.  If not, see <a href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>
     </div>
 
     <script>
