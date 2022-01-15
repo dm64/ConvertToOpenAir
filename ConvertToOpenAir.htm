@@ -217,8 +217,8 @@
 
         // calculate airspace boundary lines X km to the left of taskline
         let lineL = new Line(
-          CalcPoint(taskLine.point1, bearing+radians90, _ribbonWidt),
-          CalcPoint(taskLine.point2, bearing+radians90, _ribbonWidt)
+          CalcPoint(taskLine.point1, bearing+radians90, _ribbonWidth),
+          CalcPoint(taskLine.point2, bearing+radians90, _ribbonWidth)
         )
 
         if (i == 0) {
