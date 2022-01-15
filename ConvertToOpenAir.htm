@@ -272,6 +272,9 @@
         case "star":
           AddMarkerToAirspace = AddStarToAirspace;
           break;
+        case "triangle":
+          AddMarkerToAirspace = AddTriangleToAirspace;
+          break;
         default:
           DebugWrite("Unknown marker shape: " + _markerShape);
           return;
@@ -330,6 +333,16 @@
       _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*2.5, radius_km/3)));
       _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*3, radius_km)));
       _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*3.5, radius_km/3)));
+      _airspace.push(OpenAirPoint(startPoint));
+    }
+
+    function AddTriangleToAirspace(centrePoint, radius_m) {
+      let radius_km = radius_m/1000;
+      let startPoint = CalcPoint(centrePoint, 0, radius_km);
+
+      _airspace.push(OpenAirPoint(startPoint));
+      _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*1.5, radius_km)));
+      _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*2.5, radius_km)));
       _airspace.push(OpenAirPoint(startPoint));
     }
 
@@ -549,6 +562,7 @@
             <option value="circle" selected="selected">Circle</option>
             <option value="diamond">Diamond</option>
             <option value="star">Star</option>
+            <option value="triangle">Triangle</option>
           </select>
           <input type="submit" value="Create Markers" id="createMarkers" name="createMarkers">
         </td>
@@ -557,7 +571,7 @@
     </form>
 
     <br><br>
-    <div style="float: right;"><i><small>developed by David May. Version 9. Source code on <a href="https://github.com/dm64/ConvertToOpenAir">GitHub</a></small></i></div>
+    <div style="float: right;"><i><small>developed by David May. Version 10. Source code on <a href="https://github.com/dm64/ConvertToOpenAir">GitHub</a></small></i></div>
     <br><br>
 
     <button type="button" class="collapsible">Airspace</button>
