@@ -1,0 +1,725 @@
+<html>
+  <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    h1 {margin: 0; padding: 0;}
+    *{ box-sizing: border-box }
+    body {font-size: 15px; }
+
+    .collapsible {
+      background-color: #777;
+      color: white;
+      cursor: pointer;
+      padding: 18px;
+      width: 100%;
+      border: none;
+      text-align: left;
+      outline: none;
+    }
+
+    .active, .collapsible:hover {
+      background-color: #555;
+    }
+
+    .content {
+      padding: 0 18px;
+      display: none;
+      overflow: hidden;
+      background-color: #f1f1f1;
+    }
+  </style>
+  <script>
+    ///////////// Points to OpenAir transform code /////////
+    const DD_TO_RADIANS = Math.PI/180; // decimal degrees to radians
+    const RADIANS_TO_DD = 180/Math.PI; // radians to decimal degrees
+    const RADIANS_90 = Math.PI/2; // 90 degrees expressed in radians
+    const RADIANS_270 = Math.PI * 1.5; // 270 degrees expressed in radians
+    const METRES_TO_NAUTICAL_MILES = 0.000539957;
+    const RADIUS_EARTH_KM = 6371;
+
+    var _airspaceType; // ribbon, block, markers
+    var _fileName;
+    var _fileExtension;
+    var _blockName;
+    var _ribbonWidth; // in km
+    var _markerRadius; // in metres
+    var _markerShape; // shape of the waypoint markers
+    var _class;
+    var _markerPrefix; // prefix to marker name
+    var _floor; // various formats: SFC, 100, 100ft, 100 ft, 100 Agl, FL 100
+    var _ceiling; // various formats: SFC, 100, 100ft, 100 ft, 100 Agl, FL 100, UNLIM
+    var _airspace = [];
+    var _points = []; // list of points from the loaded Points File
+    var _radii = []; // list of cylinder radius from the loaded Points File if present (ie. task file)
+    var _names = []; // list of point names from the loaded Points File if present (ie. task file)
+
+    // lat and lon must be in radians
+    class Point {
+      constructor(lat, lon) {
+        this.lat = lat;
+        this.lon = lon;
+      }
+    }
+
+    class Line {
+      constructor(point1, point2) {
+        this.point1 = point1;
+        this.point2 = point2;
+        this.formula = new LineFormula(point1, point2);
+      }
+    }
+
+    // line formula: aX + bY + c = 0
+    class LineFormula {
+      constructor(point1, point2) {
+        this.a = point1.lon - point2.lon;
+        this.b = point2.lat - point1.lat;
+        this.c = point1.lat*point2.lon - point2.lat*point1.lon;
+      }
+    }
+
+    // handler for the 'Choose File' button to populate _points array from the selected file
+    function LoadPointsFile(event) {
+      var inputFile = event.target.files[0];
+
+      let filenameParts = inputFile.name.split('.');
+      _fileExtension = filenameParts.pop();
+      _fileName = filenameParts.pop();
+
+      let reader = new FileReader();
+      reader.onload = function() { ProcessPointsFile(reader.result); };
+      reader.onerror = function() { DebugWrite("File Read Error", reader.error); }
+
+      reader.readAsText(inputFile);
+    };
+
+    function ProcessPointsFile(text) {
+      switch(_fileExtension) {
+        case "xctsk": //xctrack task file
+          ProcessXcTrackTask(text);
+          break;
+        case "tsk": // xcsoar task file
+          ProcessXcSoarTask(text);
+          break;
+        case "wpt": //CompeGPS waypoint file
+          ProcessCompeGpsWaypoints(text);
+          break;
+        default:
+          alert("Unknown file extension: ." + fileExtension);
+      }
+    }
+
+    function ProcessXcTrackTask(json) {
+      var oJson = JSON.parse(json);
+
+      _points = [];
+      _radii = [];
+      _names = [];
+
+      for (let i = 0; i < oJson.turnpoints.length; i++) {
+        let lat = oJson.turnpoints[i].waypoint.lat;
+        let lon = oJson.turnpoints[i].waypoint.lon;
+
+        _points.push(new Point(lat*DD_TO_RADIANS, lon*DD_TO_RADIANS)); //convert from decimal degrees to radians
+        _radii.push(oJson.turnpoints[i].radius); // add cylinder radius
+        _names.push(oJson.turnpoints[i].waypoint.name); // add waypoint name
+      }
+    }
+
+    function ProcessXcSoarTask(xml) {
+      let xmlDoc = new DOMParser().parseFromString(xml,"text/xml");
+      let waypoints = xmlDoc.getElementsByTagName("Waypoint");
+      var node = document.getElementById('scratch');
+
+      _points = [];
+      _radii = [];
+      _names = [];
+
+      for (let i = 0; i < waypoints.length; i++) {
+        let location = waypoints[i].getElementsByTagName("Location")[0];
+        let zone = waypoints[i].getElementsByTagName("ObservationZone")[0];
+        let lat = location.getAttribute("latitude");
+        let lon = location.getAttribute("longitude");
+
+        _points.push(new Point(lat*DD_TO_RADIANS, lon*DD_TO_RADIANS)); //convert from decimal degrees to radians
+        _radii.push(zone.getAttribute("radius")); // add cylinder radius
+        _names.push(waypoints[i].getAttribute("name")); // add waypoint name
+      }
+    }
+
+    function ProcessCompeGpsWaypoints(text) {
+      let lines = text.split(/\r\n|\n/);
+
+      _points = [];
+      _names = [];
+
+      for(var i = 0; i < lines.length-1; i++) {
+        let line = lines[i].replace('  ', ' ');
+
+        if (line.startsWith("W")) {
+          let parts = line.split(' ');
+
+          let name = parts[1];
+          let lat = parts[3]; //format = DDºN/S eg.51.4910666667ºN
+          let lon = parts[4]; //forma = DDºE/W eg. 0.1214000000ºE
+
+          lat = lat.endsWith("N") ? +lat.substring(0, lat.length - 2) : -lat.substring(0, lat.length - 2);
+          lon = lon.endsWith("E") ? +lon.substring(0, lon.length - 2) : -lon.substring(0, lon.length - 2);
+          _points.push(new Point(lat*DD_TO_RADIANS, lon*DD_TO_RADIANS));
+          _names.push(name);
+        }
+      }
+    }
+
+    function TransformTaskToAirspace(event) {
+      event.preventDefault();
+      let submitter = event.submitter;
+
+      //clear Airspace section
+      var node = document.getElementById('airspace');
+      node.innerHTML = "";
+
+      _blockName = event.target.elements.airspaceName.value || _fileName;
+      _ribbonWidth = +event.target.elements.ribbonWidth.value || 10;
+      _markerRadius = +event.target.elements.markerRadius.value || 400;
+      _class = event.target.elements.airspaceClass.value || "W";
+      _floor = event.target.elements.airspaceFloor.value || "SFC";
+      _ceiling = event.target.elements.airspaceCeiling.value || "SFC";
+      _markerPrefix = event.target.elements.markerPrefix.value || "";
+      _markerShape = event.target.elements.markerShape.value || "circle";
+
+      switch (event.submitter.id) {
+        case "createRibbon":
+          CreateRibbon();
+          break;
+        case "createBlock":
+          CreateBlock();
+          break;
+        case "createMarkers":
+          CreateMarkers();
+          break;
+      }
+    }
+
+    function CreateRibbon() {
+      let airspaceL=[]; // airspace boundary to left of track line when creating Ribbon
+      let prevBearing = 0;
+      let prevLineL;
+      let radians90 = _points[0].lon > _points[1].lon ? RADIANS_90 : -RADIANS_90; // 90 degrees to the left of taskline in direction of travel
+
+      _airspace=[OpenAirHeader(_blockName), OpenAirPoint(_points[0])];
+
+      for (let i = 0; i < _points.length - 1; i++) {
+        let taskLine = new Line(_points[i], _points[i+1]);
+        let bearing = CalcBearing(taskLine); // angle in radians between task line and true N
+
+        _airspace.push(OpenAirPoint(_points[i+1]));
+
+        // calculate airspace boundary lines X km to the left of taskline
+        let lineL = new Line(
+          CalcPoint(taskLine.point1, bearing+radians90, _ribbonWidt),
+          CalcPoint(taskLine.point2, bearing+radians90, _ribbonWidt)
+        )
+
+        if (i == 0) {
+          airspaceL.push(OpenAirPoint(lineL.point1), OpenAirPoint(lineL.point2));
+        }
+        else {
+          if ((bearing - prevBearing) < RADIANS_90) {
+            lineL.point1 = PointOfIntersection(prevLineL, lineL);
+            airspaceL.pop(); // remove last point as it will be replaced by the intersecting point
+            airspaceL.push(OpenAirPoint(lineL.point1), OpenAirPoint(lineL.point2));
+          }
+          else {
+            airspaceL.push(OpenAirArc(_points[i], lineL.point1, prevLineL.point2));
+            airspaceL.push(OpenAirPoint(lineL.point1), OpenAirPoint(lineL.point2));
+          }
+        }
+
+        prevBearing = bearing;
+        prevLineL = lineL;
+      }
+
+      WriteOpenAir(_airspace.concat(airspaceL.reverse(), OpenAirPoint(_points[0])), "ribbon"); // add first taskpoint at end to close block
+    }
+
+    function CreateBlock() {
+      _airspace=[OpenAirHeader(_blockName)];
+
+      for (let i = 0; i < _points.length; i++) {
+        _airspace.push(OpenAirPoint(_points[i]));
+      }
+
+      _airspace.push(OpenAirPoint(_points[0])); // add first taskpoint at end to close block
+      WriteOpenAir(_airspace, "block");
+    }
+
+    function CreateMarkers() {
+      let AddMarkerToAirspace;
+
+      _airspace=[];
+
+      switch (_markerShape) {
+        case "bow":
+          AddMarkerToAirspace = AddBowToAirspace;
+          break;
+        case "circle":
+          AddMarkerToAirspace = AddCircleToAirspace;
+          break;
+        case "diamond":
+          AddMarkerToAirspace = AddDiamondToAirspace;
+          break;
+        case "star":
+          AddMarkerToAirspace = AddStarToAirspace;
+          break;
+        default:
+          DebugWrite("Unknown marker shape: " + _markerShape);
+          return;
+      }
+
+      for (let i = 0; i < _points.length; i++) {
+        let radius_m = _radii.length > 0 ? _radii[i] : _markerRadius;
+
+        let name = _markerPrefix === ""
+          ? _names.length > 0 ? _names[i] : _markerShape.substring(2).toUpperCase() + i
+          : _markerPrefix + i;
+
+        _airspace.push(OpenAirHeader(name))
+        AddMarkerToAirspace(_points[i], radius_m);
+      }
+
+      WriteOpenAir(_airspace, _markerShape);
+    }
+
+    function AddBowToAirspace(centrePoint, radius_m) {
+        let radius_km = radius_m/1000;
+
+        _airspace.push(OpenAirPoint(centrePoint));
+        _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*0.5, radius_km)));
+        _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*1.5, radius_km)));
+        _airspace.push(OpenAirPoint(centrePoint));
+        _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*3.5, radius_km)));
+        _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*2.5, radius_km)));
+        _airspace.push(OpenAirPoint(centrePoint));
+    }
+
+    function AddCircleToAirspace(centrePoint, radius_m) {
+      _airspace.push(OpenAirCircle(centrePoint, radius_m));
+    }
+
+    function AddDiamondToAirspace(centrePoint, radius_m) {
+      let radius_km = radius_m/1000;
+      let startPoint = CalcPoint(centrePoint, 0, radius_km);
+
+      _airspace.push(OpenAirPoint(startPoint));
+      _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90, radius_km)));
+      _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*2, radius_km)));
+      _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*3, radius_km)));
+      _airspace.push(OpenAirPoint(startPoint));
+    }
+
+    function AddStarToAirspace(centrePoint, radius_m) {
+      let radius_km = radius_m/1000;
+      let startPoint = CalcPoint(centrePoint, 0, radius_km);
+
+      _airspace.push(OpenAirPoint(startPoint));
+      _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*0.5, radius_km/3)));
+      _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90, radius_km)));
+      _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*1.5, radius_km/3)));
+      _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*2, radius_km)));
+      _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*2.5, radius_km/3)));
+      _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*3, radius_km)));
+      _airspace.push(OpenAirPoint(CalcPoint(centrePoint, RADIANS_90*3.5, radius_km/3)));
+      _airspace.push(OpenAirPoint(startPoint));
+    }
+
+    // calculate the angle in radians between line and true north (measuring in clockwise direction)
+    function CalcBearing(line)
+    {
+      let lat1 = line.point1.lat;
+      let lat2 = line.point2.lat;
+      let lonDelta = line.point2.lon - line.point1.lon;
+
+      let x = Math.cos(lat2)*Math.sin(lonDelta);
+      let y = Math.cos(lat1)*Math.sin(lat2) - Math.sin(lat1)*Math.cos(lat2)*Math.cos(lonDelta);
+
+      let angle = Math.atan2(y, x); // angle in radians between line and latitude 0
+      return RADIANS_90 - angle; // angle in radians between line and true north
+    }
+
+    // calculate new point at new bearing and distance from known point
+    function CalcPoint(point, bearing, distanceKm)
+    {
+      let aD = distanceKm/RADIUS_EARTH_KM; //angular distance
+      let lat = point.lat;
+      let lon = point.lon;
+
+      let newLat = Math.asin(Math.sin(lat) * Math.cos(aD) + Math.cos(lat) * Math.sin(aD) * Math.cos(bearing));
+      let newLon = lon + Math.atan2(Math.sin(bearing) * Math.sin(aD) * Math.cos(lat), Math.cos(aD) - Math.sin(lat)*Math.sin(newLat));
+      let newPoint = new Point(newLat, newLon);
+
+      return newPoint;
+    }
+
+    // calculate distance in km between 2 points
+    function CalcDistance(point1, point2)
+    {
+      let lat1 = point1.lat;
+      let lon1 = point1.lon;
+      let lat2 = point2.lat;
+      let lon2 = point2.lon;
+
+      return RADIUS_EARTH_KM*Math.acos(Math.sin(lat1)*Math.sin(lat2) + Math.cos(lat1)*Math.cos(lat2)*Math.cos(lon2 - lon1));
+    }
+
+    // calculate the point of intersection of 2 lines
+    function PointOfIntersection(line1, line2)
+    {
+      let f1 = line1.formula;
+      let f2 = line2.formula;
+
+      // latitude and longitude of point at intersection of line1 and line2
+      let lat = (f1.b*f2.c - f2.b*f1.c)/(f1.a*f2.b-f2.a*f1.b);
+      let lon = (f1.c*f2.a - f2.c*f1.a)/(f1.a*f2.b-f2.a*f1.b);
+
+      return new Point(lat, lon);
+    }
+
+    // convert radians to OpenAir Degree Minute Second string
+    function To_DMS(radians, isLongitude)
+    {
+      let dPadding = 2;
+      let direction = radians < 0 ? "S" : "N";
+
+      if (isLongitude)
+      {
+        dPadding = 3;
+        direction = radians < 0 ? "W" : "E";
+      }
+
+      let dd = Math.abs(radians*RADIANS_TO_DD); // decimal degrees
+
+      d = Math.trunc(dd); // degrees
+      ms = (dd -d) * 60; // decimal minutes + seconds
+      m = Math.trunc(ms); // minutes
+      s = Math.trunc((ms - m) * 60); // seconds
+
+      return d.toString().padStart(dPadding, "0") + ":" + m.toString().padStart(2, "0") + ":" + s.toString().padStart(2, "0") + " " + direction;
+    }
+
+    function OpenAirHeader(blockName)
+    {
+      let eol = "<br>";
+      let header = "AC " + _class + eol;
+      header += "AN " + blockName + eol;
+      header += "AL " + _floor + eol;
+      header += "AH " + _ceiling + eol;
+
+      return header;
+    }
+
+    // create OpenAir DMS Coordinate
+    function To_DMS_Coordinate(point) {
+      return To_DMS(point.lat, false) + " " + To_DMS(point.lon, true);
+    }
+
+    // create OpenAir DP (point) element
+    function OpenAirPoint(point, eol = "<br>")
+    {
+      return "DP " + To_DMS_Coordinate(point) + eol;
+    }
+
+    // create OpenAir DB (arc) element
+    function OpenAirArc(centrePoint, startPoint, endPoint, eol = "<br>")
+    {
+      let arc = "V D=-" + eol;
+      arc += "V X=" + To_DMS_Coordinate(centrePoint) + eol;
+      arc += "DB " + To_DMS_Coordinate(startPoint) + ", " + To_DMS_Coordinate(endPoint) + eol;
+
+      return arc;
+    }
+
+    // create OpenAir DC (circle) element
+    function OpenAirCircle(centrePoint, radius, eol = "<br>")
+    {
+      let circle = "V X=" + To_DMS_Coordinate(centrePoint) + eol;
+      circle += "DC " + (radius * METRES_TO_NAUTICAL_MILES) + eol;
+
+      return circle;
+    }
+
+    function download(filename, text) {
+      var pom = document.createElement('a');
+      pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+      pom.setAttribute('download', filename);
+
+      pom.style.display = 'none';
+      document.body.appendChild(pom);
+
+      pom.click();
+
+      document.body.removeChild(pom);
+    }
+
+    function WriteOpenAir(airspaceBlocks, airspaceType, createFile = true)
+    {
+      let eol = "<br>";
+      let openAir = "***** Converted from file '" + _fileName + "." + _fileExtension + "' *****" + eol;
+
+      airspaceBlocks.forEach(block => openAir += block);
+
+      WriteToAirspace(openAir);
+
+      if (createFile === true) {
+        download(airspaceType + "_" + _fileName + ".txt", openAir.replace(/<br>/g,'\n'));
+      }
+    }
+
+    function DebugWrite(text, error) {
+      WriteToAirspace("<br>" + text + "<br>" + error + "<br>");
+    }
+
+    // writes variable number of elements to Airspace section
+    function WriteToAirspace()
+    {
+      let element = document.getElementById('airspace');
+
+      for (let i = 0; i < arguments.length; i+=2) {
+        element.innerHTML += arguments[i] + ": " + arguments[i+1] + "<br>";
+      }
+    }
+  </script>
+  </head>
+  <body>
+    <h1>Convert To OpenAir Format</h1>
+    <div><i><small>created by David May. v9 Jan 2021</small></i></div>
+    <br>
+    <form id="convertTask" onSubmit='TransformTaskToAirspace(event)'>
+      <table>
+      <tr>
+        <td><label for="pointsFile">Points File<br>(<i><small>.tsk, .xctsk, .wpt</small></i>)</label></td>
+        <td><input type='file' accept='.xctsk,.tsk,.wpt' onchange='LoadPointsFile(event)' id="pointsFile" name="pointsFile"></td>
+      </tr>
+      <tr><td colspan=2><hr></td></tr>
+      <tr>
+        <td><label for="airspaceName" title="defaults to Points File name or Marker type">Airspace Name</label></td>
+        <td><input type="text" id="airspaceName" name="airspaceName"></td>
+      </tr>
+      <tr>
+        <td><label for="airspaceclass">Class</label></td>
+        <td><input type="text" id="airspaceClass" name="airspaceClass" value="W"></td>
+      </tr>
+      <tr>
+        <td><label for="airspacebase" title="various formats: SFC, 100, 100ft, 100 ft, 100 Agl, FL 100 etc">Floor</label></td>
+        <td><input type="text" id="airspaceFloor" name="airspaceFloor" value="SFC"></td>
+      </tr>
+      <tr>
+        <td><label for="airspaceTop" title="various formats: SFC, 100, 100ft, 100 ft, 100 Agl, FL 100, UNLIM etc">Ceiling</label></td>
+        <td><input type="text" id="airspaceCeiling" name="airspaceCeiling" value="SFC"></td>
+      </tr>
+      <tr>
+        <td></td>
+        <td><input type="submit" value="Create Block" id="createBlock" name="createBlock"></td>
+      </tr>
+      <tr><td colspan=2><hr></td></tr>
+      <tr>
+        <td><label for="ribbonWidth">Width (km)</label></td>
+        <td>
+          <input type="text" id="ribbonWidth" name="ribbonWidth" value="10">
+          <input type="submit" value="Create Ribbon" id="createRibbon" name="createRibbon">
+        </td>
+      </tr>
+      <tr><td colspan=2><hr></td></tr>
+      <tr>
+        <td><label for="markerPrefix">Name Prefix</label></td>
+        <td>
+          <input type="text" id="markerPrefix" name="markerPrefix">
+        </td>
+      </tr>
+      <tr>
+        <td><label for="markerRadius">Radius (m)</label></td>
+        <td>
+          <input type="text" id="markerRadius" name="markerRadius" value="400">
+        </td>
+      </tr>
+      <tr>
+        <td><label for="markerShape">Shape</label></td>
+        <td>
+          <select id="markerShape" name="markerShape">
+            <option value="bow">Bow</option>
+            <option value="circle" selected="selected">Circle</option>
+            <option value="diamond">Diamond</option>
+            <option value="star">Star</option>
+          </select>
+          <input type="submit" value="Create Markers" id="createMarkers" name="createMarkers">
+        </td>
+      </tr>
+      </table>
+    </form>
+
+    <button type="button" class="collapsible">Airspace</button>
+    <div id="airspace" class="content"></div>
+    <div id="debug"></div>
+
+    <button type="button" class="collapsible">Documentation</button>
+    <div id="documentation" class="content">
+      <div>Tool to convert a file containing a set of GPS coordinates to an OpenAir airspace file.</div><br>
+      <div>It creates an OpenAir airspace file with one of the following configurations:</div>
+      <div>
+        <ul>
+          <li><b>Block</b>: creates a block of airspace defined by the task. Closes the airspace by joining the last point to the first</li>
+          <li><b>Ribbon</b>: creates an airspace strip or ribbon that follows the task line. The task line makes up the right hand boundary of the airspace (in the direction of travel).</li>
+          <li><b>Markers</b>: creates a marker at each point in the file. The marker shape can be one of: bow, circle (default), diamond or star</li>
+        </ul>
+      </div>
+
+      <h3>How to</h3>
+      <div>
+        <ol>
+          <li>Load the file containing the points to be converted.</li>
+          <li>Fill in the various parameters or if you are happy with the default values then carry on to step 3.</li>
+          <li>Click one of the 'Create Block', 'Create Ribbon' or 'Create Markers' button</li>
+          <li>A '.txt' file will be saved to your Download folder with same name as the task file and with 'block', 'ribbon' or the marker type added to the front</li>
+          <li>The OpenAir text will be displayed in the Airspace section. It can be copied from here.</li>
+        </ul>
+      </div>
+
+      <h3>Parameters</h3>
+      <h4>Points File</h4>
+      <div>The following file types are accepted (based on the file extension):</div><br>
+      <table>
+        <tr><td>.xctsk</td><td>XcTrack Task File</td></tr>
+        <tr><td>.tsk</td><td>XcSoar Task File</td></tr>
+        <tr><td>.wpt</td><td>CompeGPS Waypoint File (note: other .wpt file formats will not work)</td></tr>
+      </table>
+
+      <h4>Airspace Name</h4>
+      <div>If not provided, it defaults to the name of the Points File if creating a Block or Ribbon. Not used for Markers</div>
+
+      <h4>Class</h4>
+      <div>Enter the airspace class. Defaults to 'W' which shows as green on XcTrack</div>
+
+      <h4>Floor/Ceiling</h4>
+      <div>The airspace floor/ceiling can be a entered in a number of different formats. It defaults to 'SFC' if not populated</div>
+      <div>eg. SFC, 100, 100ft, 100 ft, 100 Agl, FL 100, UNLIM etc</div>
+
+      <h4><u>Additional Parameters for Airspace Ribbon</u></h4>
+      <h4>Width (km)</h4>
+      <div>This is the width of the airspace strip in km. Only used if creating an 'airspace ribbon'. Defaults to 10km</div>
+
+      <h4><u>Additional Parameters for Airspace Markers</u></h4>
+      <h4>Name Prefix</h4>
+      <div>
+        If supplied, markers will be named using this prefix with a sequential number at the end<br>
+        eg. if Name Prefix = TR then the markers will be named: TR1, TR2, TR3 ...<br><br>
+        If the Name prefix is not provided, markers will take the name defined in the Points file if it exists, otherwise they will use a prefix based on the marker shape (bow = BO, circle = CI etc).
+      </div>
+
+      <h4>Radius (m)</h4>
+      <div>
+        Radius of the markers in metres if converting to a set of airspace markers. For markers that are not circles, this is the radius of the circle the marker is contained in.<br>
+        Defaults to the cylinder radius defined in the Points File or 400m if no cylinders defined.
+      </div>
+
+      <h4>Shape</h4>
+      <div>Shape of the marker. It can be one of: bow, circle (default), diamond or star<br><br></div>
+    </div>
+
+    <button type="button" class="collapsible">License</button>
+    <div id="license" class="content">
+      This program is free software; you can redistribute it and/or modify
+      it under the terms of the GNU General Public License as published by
+      the Free Software Foundation.
+      <br>
+      This program is distributed in the hope that it will be useful,
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
+      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+      <br>
+      You should have received a copy of the GNU General Public License along with this program (see below). If not, see <a href="https://www.gnu.org/licenses/">https://www.gnu.org/licenses/</a>.
+      <br><br>
+
+      <button type="button" class="collapsible"><i><small>GNU GENERAL PUBLIC LICENSE</small></i></button>
+      <div id="GPL" class="content">
+
+        GNU GENERAL PUBLIC LICENSE
+<br>        Version 3, 29 June 2007
+<br>
+<br>Copyright (C) 2007 Free Software Foundation, Inc. <a href="https://fsf.org/">https://fsf.org/</a>
+<br>Everyone is permitted to copy and distribute verbatim copies
+<br>of this license document, but changing it is not allowed.
+<br>
+<br>             Preamble
+<br>
+<br>The GNU General Public License is a free, copyleft license for
+<br>software and other kinds of works.
+<br>
+<br>The licenses for most software and other practical works are designed
+<br>to take away your freedom to share and change the works.  By contrast,
+<br>the GNU General Public License is intended to guarantee your freedom to
+<br>share and change all versions of a program--to make sure it remains free
+<br>software for all its users.  We, the Free Software Foundation, use the
+<br>GNU General Public License for most of our software; it applies also to
+<br>any other work released this way by its authors.  You can apply it to
+<br>your programs, too.
+<br>
+<br>When we speak of free software, we are referring to freedom, not
+<br>price.  Our General Public Licenses are designed to make sure that you
+<br>have the freedom to distribute copies of free software (and charge for
+<br>them if you wish), that you receive source code or can get it if you
+<br>want it, that you can change the software or use pieces of it in new
+<br>free programs, and that you know you can do these things.
+<br>
+<br>To protect your rights, we need to prevent others from denying you
+<br>these rights or asking you to surrender the rights.  Therefore, you have
+<br>certain responsibilities if you distribute copies of the software, or if
+<br>you modify it: responsibilities to respect the freedom of others.
+<br>
+<br>For example, if you distribute copies of such a program, whether
+<br>gratis or for a fee, you must pass on to the recipients the same
+<br>freedoms that you received.  You must make sure that they, too, receive
+<br>or can get the source code.  And you must show them these terms so they
+<br>know their rights.
+<br>
+<br>Developers that use the GNU GPL protect your rights with two steps:
+<br>(1) assert copyright on the software, and (2) offer you this License
+<br>giving you legal permission to copy, distribute and/or modify it.
+<br>
+<br>For the developers' and authors' protection, the GPL clearly explains
+<br>that there is no warranty for this free software.  For both users' and
+<br>authors' sake, the GPL requires that modified versions be marked as
+<br>changed, so that their problems will not be attributed erroneously to
+<br>authors of previous versions.
+<br>
+<br>Some devices are designed to deny users access to install or run
+<br>modified versions of the software inside them, although the manufacturer
+<br>can do so.  This is fundamentally incompatible with the aim of
+<br>protecting users' freedom to change the software.  The systematic
+<br>pattern of such abuse occurs in the area of products for individuals to
+<br>use, which is precisely where it is most unacceptable.  Therefore, we
+<br>have designed this version of the GPL to prohibit the practice for those
+<br>products.  If such problems arise substantially in other domains, we
+<br>stand ready to extend this provision to those domains in future versions
+<br>of the GPL, as needed to protect the freedom of users.
+<br>
+      </div>
+    </div>
+
+    <script>
+      ///////////// code to manage folding sections /////////
+      var coll = document.getElementsByClassName("collapsible");
+      var i;
+
+      for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+          this.classList.toggle("active");
+          var content = this.nextElementSibling;
+          if (content.style.display === "block") {
+            content.style.display = "none";
+          } else {
+            content.style.display = "block";
+          }
+        });
+      }
+    </script>
+  </body>
+</html>
