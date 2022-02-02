@@ -206,6 +206,9 @@
       let prevBearing = 0;
       let prevLineL;
       let radians90 = _points[0].lon > _points[1].lon ? RADIANS_90 : -RADIANS_90; // 90 degrees to the left of taskline in direction of travel
+      
+      if (_points[0].lat < 0)
+        radians90 = -radians90;
 
       _airspace=[OpenAirHeader(_blockName), OpenAirPoint(_points[0])];
 
@@ -225,13 +228,15 @@
           airspaceL.push(OpenAirPoint(lineL.point1), OpenAirPoint(lineL.point2));
         }
         else {
-          if ((bearing - prevBearing) < RADIANS_90) {
-            lineL.point1 = PointOfIntersection(prevLineL, lineL);
-            airspaceL.pop(); // remove last point as it will be replaced by the intersecting point
+          let bearingDiff = bearing - prevBearing;
+
+          if (bearingDiff > 0 && bearingDiff < Math.PI) {
+            airspaceL.push(OpenAirArc(_points[i], lineL.point1, prevLineL.point2));
             airspaceL.push(OpenAirPoint(lineL.point1), OpenAirPoint(lineL.point2));
           }
           else {
-            airspaceL.push(OpenAirArc(_points[i], lineL.point1, prevLineL.point2));
+            lineL.point1 = PointOfIntersection(prevLineL, lineL);
+            airspaceL.pop(); // remove last point as it will be replaced by the intersecting point
             airspaceL.push(OpenAirPoint(lineL.point1), OpenAirPoint(lineL.point2));
           }
         }
@@ -346,18 +351,18 @@
       _airspace.push(OpenAirPoint(startPoint));
     }
 
-    // calculate the angle in radians between line and true north (measuring in clockwise direction)
+    // calculate the angle in radians between line and north (+/- angle with respect to N)
     function CalcBearing(line)
     {
       let lat1 = line.point1.lat;
-      let lat2 = line.point2.lat;
+      let lon1 = line.point1.lon;
       let lonDelta = line.point2.lon - line.point1.lon;
 
       let x = Math.cos(lat2)*Math.sin(lonDelta);
       let y = Math.cos(lat1)*Math.sin(lat2) - Math.sin(lat1)*Math.cos(lat2)*Math.cos(lonDelta);
-
-      let angle = Math.atan2(y, x); // angle in radians between line and latitude 0
-      return RADIANS_90 - angle; // angle in radians between line and true north
+      let bearing = Math.atan2(x, y);
+      
+      return bearing;
     }
 
     // calculate new point at new bearing and distance from known point
@@ -618,7 +623,7 @@
       <div>Enter the airspace class. Defaults to 'W' which shows as green on XcTrack</div>
 
       <h4>Floor/Ceiling</h4>
-      <div>The airspace floor/ceiling can be a entered in a number of different formats. It defaults to 'SFC' if not populated</div>
+      <div>The airspace floor/ceiling can be a entered in a number of different formats. It defaults to 'SFC' if not populated. Units default to feet</div>
       <div>eg. SFC, 100, 100ft, 100 ft, 100 Agl, FL 100, UNLIM etc</div>
 
       <h4><u>Additional Parameters for Airspace Ribbon</u></h4>
