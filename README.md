@@ -1,5 +1,5 @@
 # Convert To OpenAir Tool #
-Tool to convert a file containing a set of GPS coordinates to an OpenAir airspace file.mark
+Tool to convert a file containing a set of GPS coordinates to an OpenAir airspace file.
 It creates an OpenAir airspace file with one of the following configurations:
 
 - **Block**: creates a block of airspace defined by the task. Closes the airspace by joining the last point to the first
