@@ -356,6 +356,7 @@
     {
       let lat1 = line.point1.lat;
       let lon1 = line.point1.lon;
+      let lat2 = line.point2.lat;
       let lonDelta = line.point2.lon - line.point1.lon;
 
       let x = Math.cos(lat2)*Math.sin(lonDelta);
@@ -576,7 +577,7 @@
     </form>
 
     <br><br>
-    <div style="float: right;"><i><small>developed by David May. Version 10. Source code on <a href="https://github.com/dm64/ConvertToOpenAir">GitHub</a></small></i></div>
+    <div style="float: right;"><i><small>developed by David May. Version 11. Source code on <a href="https://github.com/dm64/ConvertToOpenAir">GitHub</a></small></i></div>
     <br><br>
 
     <button type="button" class="collapsible">Airspace</button>
