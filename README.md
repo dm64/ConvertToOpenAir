@@ -11,8 +11,8 @@ It creates an OpenAir airspace file with one of the following configurations:
 1. Load the file containing the points to be converted.
 2. Fill in the various parameters or if you are happy with the default values then carry on to step 3.
 3. Click one of the 'Create Block', 'Create Ribbon' or 'Create Markers' button
-4. A '.txt' file will be saved to your Download folder with same name as the task file and with 'block', 'ribbon' or the marker type added to the front
-5. The OpenAir text will be displayed in the Airspace section. It can be copied from here.
+4. An OpenAir '.txt' file will be saved to your Download folder with same name as the task file and with 'block', 'ribbon' or the marker type added to the front
+5. The OpenAir text will be displayed in the Airspace section. It can be copied from here also.
 
 ## Parameters ##
 ### Points File ###
