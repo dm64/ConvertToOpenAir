@@ -50,6 +50,11 @@ Defaults to the cylinder radius defined in the Points File or 400m if no cylinde
 ### Shape ###
 Shape of the marker. It can be one of: bow, circle (default), diamond, star or triangle.
 
+## Thermal Hotspots as Markers [https://thermal.kk7.ch/](https://thermal.kk7.ch/) ##
+You can transform the OziExplorer Waypoint File (.wpt) downloadable from [https://thermal.kk7.ch/](https://thermal.kk7.ch/) into a set of markers.<br>
+It will generate a set of markers with a variable radius based on the thermal probability (last field of the waypoint file) - the higher the probability, the larger the marker.<br>
+The maximum size of a marker will be the defined by the Radius you enter in the form, or the default radius if the field is left blank.
+
 # Copyright Notice #
 Copyright 2022 David May
 

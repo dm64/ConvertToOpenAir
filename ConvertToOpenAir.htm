@@ -152,6 +152,7 @@
 
       _points = [];
       _names = [];
+      _radii = [];
 
       for(var i = 0; i < lines.length-1; i++) {
         let line = lines[i].replace('  ', ' ');
@@ -162,11 +163,20 @@
           let name = parts[1];
           let lat = parts[3]; //format = DDºN/S eg.51.4910666667ºN
           let lon = parts[4]; //forma = DDºE/W eg. 0.1214000000ºE
+          let thermalProbability = parts[8]; // ***IF*** downloaded from https://thermal.kk7.ch/
 
           lat = lat.endsWith("N") ? +lat.substring(0, lat.length - 2) : -lat.substring(0, lat.length - 2);
           lon = lon.endsWith("E") ? +lon.substring(0, lon.length - 2) : -lon.substring(0, lon.length - 2);
           _points.push(new Point(lat*DD_TO_RADIANS, lon*DD_TO_RADIANS));
           _names.push(name);
+          let radius = -1;
+          let matches;
+
+          if (matches = thermalProbability.match(/th(\d+%)/)) {
+            radius = matches[1];
+          }
+
+          _radii.push(radius);
         }
       }
     }
@@ -286,7 +296,9 @@
       }
 
       for (let i = 0; i < _points.length; i++) {
-        let radius_m = _radii.length > 0 ? _radii[i] : _markerRadius;
+        let radius_m = _radii.length > 0
+          ? _radii[i].endsWith('%') ? Math.trunc(_markerRadius * parseFloat(_radii[i])/100) : _markerRadius
+          : _markerRadius;
 
         let name = _markerPrefix === ""
           ? _names.length > 0 ? _names[i] : _markerShape.substring(2).toUpperCase() + i
@@ -577,7 +589,7 @@
     </form>
 
     <br><br>
-    <div style="float: right;"><i><small>developed by David May. Version 12. Source code on <a href="https://github.com/dm64/ConvertToOpenAir">GitHub</a></small></i></div>
+    <div style="float: right;"><i><small>developed by David May. Version 13. Source code on <a href="https://github.com/dm64/ConvertToOpenAir">GitHub</a></small></i></div>
     <br><br>
 
     <button type="button" class="collapsible">Airspace</button>
@@ -647,6 +659,13 @@
 
       <h4>Shape</h4>
       <div>Shape of the marker. It can be one of: bow, circle (default), diamond, star or triangle<br><br></div>
+
+      <h3>Thermal Hotspots (https://thermal.kk7.ch/)</h3>
+      <div>
+        You can transform the OziExplorer Waypoint File (.wpt) downloadable from https://thermal.kk7.ch into a set of markers.<br>
+        It will generate a set of markers with a variable radius based on the thermal probability (last field of the waypoint file) - the higher the probability, the larger the marker.<br>
+        The maximum size of a marker will be the defined by the Radius you enter in the form, or the default radius if the field is left blank.
+      </div>
     </div>
 
     <button type="button" class="collapsible">Copyright Notice</button>
